@@ -1,42 +1,75 @@
-import ReactDOM from 'react-dom'
-import React, { useRef, useState } from 'react'
-import { Canvas, MeshProps, useFrame } from 'react-three-fiber'
-import type { Mesh } from 'three'
+import { Canvas } from '@react-three/fiber'
+import { MeshProps } from '@react-three/fiber/dist/declarations/src/three-types';
+import { Physics, usePlane, useBox } from '@react-three/cannon'
 
-const Box: React.FC<MeshProps> = (props) => {
-  // This reference will give us direct access to the mesh
-  const mesh = useRef<Mesh>()
+import { Box } from '@react-three/drei'
 
-  // Set up state for the hovered and active state
-  const [hovered, setHover] = useState(false)
-  const [active, setActive] = useState(false)
+import './App.scss';
 
-  // Rotate mesh every frame, this is outside of React without overhead
-  useFrame(() => {
-    if (mesh.current) mesh.current.rotation.x = mesh.current.rotation.y += 0.01
-  })
-
+function Plane() {
+  const [ref] = usePlane(() => ({ rotation: [-Math.PI / 2, 0, 0] }))
   return (
-    <mesh
-      {...props}
-      ref={mesh}
-      scale={active ? [1.5, 1.5, 1.5] : [1, 1, 1]}
-      onClick={(event) => setActive(!active)}
-      onPointerOver={(event) => setHover(true)}
-      onPointerOut={(event) => setHover(false)}>
-      <boxBufferGeometry args={[1, 1, 1]} />
-      <meshStandardMaterial color={hovered ? 'hotpink' : 'orange'} />
+    <mesh ref={ref}>
+      <planeBufferGeometry args={[100, 100]} />
     </mesh>
   )
+}
+const MyBox: React.FC<MeshProps> = (props: MeshProps) => {
+
+  const [ref] = useBox(() => ({ mass: 1, position: props.position as number[] }))
+
+  return (
+    <Box
+      args={[1, 1, 1]}
+      ref={ref}
+      {...props as any}
+      >
+      <meshStandardMaterial color={'hotpink'} />
+    </Box>
+  )
+}
+
+const Scene = () => {
+  
+  let amountX = 6
+  let amountY = 6
+  let amountZ = 6
+
+  return (
+    <>
+      <ambientLight />
+      <pointLight position={[10, 10, 10]} />
+      {[...Array(amountX)].map((_, x) => {
+        return [...Array(amountY)].map((_, y) => {
+          return [...Array(amountZ)].map((_, z) => {
+            return <MyBox 
+              position={[
+                x - (amountX / 2), 
+                y + amountY/2, 
+                z - (amountZ / 2)
+              ]}
+              key={`${x}-${y}-${z}`}/>
+          })
+        })
+      })}
+      <Plane/>
+    </>
+  )
+
 }
 
 function App() {
   return (
-    <Canvas>
-      <ambientLight />
-      <pointLight position={[10, 10, 10]} />
-      <Box position={[-1.2, 0, 0]} />
-      <Box position={[1.2, 0, 0]} />
+    <Canvas
+      camera={{
+        position: [0, 3, 15],
+        fov: 70
+      }}>
+      <Physics>
+        <ambientLight />
+        <pointLight position={[10, 10, 10]} />
+        <Scene />
+      </Physics>
     </Canvas>
   );
 }
