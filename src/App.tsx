@@ -1,13 +1,25 @@
+import * as THREE from 'three';
 import { ReactThreeFiber, Canvas } from '@react-three/fiber'
 import { MeshProps } from '@react-three/fiber/dist/declarations/src/three-types';
 import { Physics, usePlane, useBox } from '@react-three/cannon'
-import { Box, OrbitControls, Plane, Sky } from '@react-three/drei'
+import { 
+  Box, 
+  OrbitControls, 
+  Plane, 
+  Sky, 
+  Stats,
+  useTexture 
+} from '@react-three/drei'
 
 import './App.scss';
 
 const MyPlane: React.FC<MeshProps> = (props: MeshProps) => {
 
   const [ref] = usePlane(() => ({ rotation: [-Math.PI / 2, 0, 0] }))
+
+  const texture = new THREE.TextureLoader().load('./textures/grass.jpg');
+  texture.wrapS = texture.wrapT = THREE.RepeatWrapping
+  texture.repeat.set(128,128)
 
   return (
     <Plane
@@ -16,13 +28,17 @@ const MyPlane: React.FC<MeshProps> = (props: MeshProps) => {
       receiveShadow
       {...props as any}
       >
-      <meshStandardMaterial color={0xF9D7C0} />
+      
+      <meshStandardMaterial map={texture} /> :
+      
     </Plane>
   )
 }
 const MyBox: React.FC<MeshProps> = (props: MeshProps) => {
 
   const [ref] = useBox(() => ({ mass: 1, position: props.position as number[] }))
+
+  let colors = [0xF9D7C0, 0xE89E9E, 0x9268CC, 0x2F288A]
 
   return (
     <Box
@@ -32,7 +48,7 @@ const MyBox: React.FC<MeshProps> = (props: MeshProps) => {
       receiveShadow={true}
       {...props as any}
       >
-      <meshStandardMaterial color={0xE89E9E} />
+      <meshStandardMaterial color={colors[Math.floor(Math.random() * 4)]} />
     </Box>
   )
 }
@@ -43,7 +59,7 @@ const Scene = () => {
   let amountY = 6
   let amountZ = 6
 
-  let sunPosNorm: ReactThreeFiber.Vector3 = [.1,.5,.5]
+  let sunPosNorm: ReactThreeFiber.Vector3 = [.1,.1,.5]
   let sunDistance = 20
 
   return (
@@ -99,6 +115,7 @@ function App() {
         <Scene />
       </Physics>
       <OrbitControls />
+      <Stats />
     </Canvas>
   );
 }
