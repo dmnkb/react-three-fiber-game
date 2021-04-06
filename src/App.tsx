@@ -7,9 +7,12 @@ import {
   OrbitControls, 
   Plane, 
   Sky, 
-  Stats,
+  Stats,  
   useTexture 
 } from '@react-three/drei'
+
+import Voxel, { Sides } from './components/voxel/Voxel'
+import Terrain from './components/terrain/Terrain'
 
 import './App.scss';
 
@@ -27,10 +30,8 @@ const MyPlane: React.FC<MeshProps> = (props: MeshProps) => {
       ref={ref}
       receiveShadow
       {...props as any}
-      >
-      
+      >      
       <meshStandardMaterial map={texture} /> :
-      
     </Plane>
   )
 }
@@ -54,12 +55,8 @@ const MyBox: React.FC<MeshProps> = (props: MeshProps) => {
 }
 
 const Scene = () => {
-  
-  let amountX = 6
-  let amountY = 6
-  let amountZ = 6
 
-  let sunPosNorm: ReactThreeFiber.Vector3 = [.1,.1,.5]
+  let sunPosNorm: ReactThreeFiber.Vector3 = [.25,.1,.5]
   let sunDistance = 20
 
   return (
@@ -83,20 +80,14 @@ const Scene = () => {
           sunPosNorm[2] * sunDistance
         ]}
         intensity={1.5}/>
-      {[...Array(amountX)].map((_, x) => {
-        return [...Array(amountY)].map((_, y) => {
-          return [...Array(amountZ)].map((_, z) => {
-            return <MyBox 
-              position={[
-                x - (amountX / 2), 
-                y + amountY/2, 
-                z - (amountZ / 2)
-              ]}
-              key={`${x}-${y}-${z}`}/>
-          })
-        })
-      })}
-      <MyPlane/>
+
+        <group position={[-4, -4, -4]}>
+          <Terrain />
+        </group>
+      {/* <Voxel hideSides={[Sides.top]}/> */}
+      {/* <axesHelper scale={[2,2,2]}/> */}
+      {/* <MyPlane/> */}
+      
     </>
   )
 
