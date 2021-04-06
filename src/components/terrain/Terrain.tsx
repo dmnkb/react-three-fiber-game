@@ -63,15 +63,13 @@ const Terrain: React.FC = () => {
     },
   ];
 
+  let horFactor = .015;
+  let vertFactor = 3;
+
   for (let x = 0; x < amountX; x++) {
     for (let y = 0; y < amountY; y++) {
       for (let z = 0; z < amountZ; z++) {
-        // console.log(
-        //   "limit: " + 
-        //   ((Math.sin(x / amountX * 360) * Math.sin(z / amountZ * 360))) +
-        //   " y: " +
-        //   y)
-        if ( y < ((Math.sin(x / amountX * 360) * Math.sin(z / amountZ * 360)) * 2 + 3) ) {
+        if ( y < ((Math.sin(x / amountX * 360 * horFactor) * Math.sin(z / amountZ * 360 * horFactor)) * vertFactor + 3) ) {
           voxelData[vector3ToArrayIndex(x,y,z, amountX)] = blockTypes.dirt
         }
       }
