@@ -35,24 +35,6 @@ const MyPlane: React.FC<MeshProps> = (props: MeshProps) => {
     </Plane>
   )
 }
-const MyBox: React.FC<MeshProps> = (props: MeshProps) => {
-
-  const [ref] = useBox(() => ({ mass: 1, position: props.position as number[] }))
-
-  let colors = [0xF9D7C0, 0xE89E9E, 0x9268CC, 0x2F288A]
-
-  return (
-    <Box
-      args={[1, 1, 1]}
-      ref={ref}
-      castShadow={true}
-      receiveShadow={true}
-      {...props as any}
-      >
-      <meshStandardMaterial color={colors[Math.floor(Math.random() * 4)]} />
-    </Box>
-  )
-}
 
 const Scene = () => {
 
@@ -80,11 +62,9 @@ const Scene = () => {
           sunPosNorm[2] * sunDistance
         ]}
         intensity={1.5}/>
-
-        <group position={[-4, -4, -4]}>
-          <Terrain />
-        </group>
-      {/* <Voxel hideSides={[Sides.top]}/> */}
+        
+      <Terrain />
+      
       {/* <axesHelper scale={[2,2,2]}/> */}
       {/* <MyPlane/> */}
       
