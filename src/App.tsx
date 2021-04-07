@@ -42,8 +42,8 @@ const Scene = () => {
   let sunPosNorm: ReactThreeFiber.Vector3 = [.25,.1,.5]
   let sunDistance = 200
   
-  let loadChunkX = 3
-  let loadChunkZ = 3
+  let loadChunkX = 8
+  let loadChunkZ = 8
 
   return (
     <>

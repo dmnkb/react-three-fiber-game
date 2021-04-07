@@ -149,8 +149,8 @@ const Chunk: React.FC<ChunkProps> = ({offset}) => {
             neighborCoords.z, 
             chunkScale)]
 
-        // Restult is valid (= inside chunk) && no neighbor
-        if (isInBounds(neighborCoords, chunkScale) && neighbor === 0) {
+        // For the time being we draw faces at the edges of chunks
+        if (!isInBounds(neighborCoords, chunkScale) || neighbor === 0) {
           // Draw face at given coords at given side
           const ndx = positions.length / 3;
           for (const pos of faceDirs[i].corners) {
