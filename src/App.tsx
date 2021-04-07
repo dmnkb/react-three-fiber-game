@@ -12,10 +12,10 @@ import {
   useTexture 
 } from '@react-three/drei'
 
-import Voxel, { Sides } from './components/voxel/Voxel'
-import Terrain from './components/terrain/Terrain'
+import Chunk from './components/chunk/Chunk'
 
 import './App.scss';
+import { Vector3 } from 'three';
 
 const MyPlane: React.FC<MeshProps> = (props: MeshProps) => {
 
@@ -40,7 +40,10 @@ const MyPlane: React.FC<MeshProps> = (props: MeshProps) => {
 const Scene = () => {
 
   let sunPosNorm: ReactThreeFiber.Vector3 = [.25,.1,.5]
-  let sunDistance = 20
+  let sunDistance = 200
+  
+  let loadChunkX = 3
+  let loadChunkZ = 3
 
   return (
     <>
@@ -63,11 +66,21 @@ const Scene = () => {
           sunPosNorm[2] * sunDistance
         ]}
         intensity={1.5}/>
-      <Terrain />
+    
+      <group position={[-((loadChunkX-1)*32)/2, 0, -((loadChunkZ-1)*32)/2]}>
+        {[...Array(loadChunkX)].map((_, x) => {
+          return [...Array(loadChunkZ)].map((_, z) => {
+            return <Chunk key={`${x}-${z}`} offset={new Vector3(x*32, 0, z*32)}/>
+          })
+        })}
+      </group>
     </>
   )
 
+  
+
 }
+
 
 function App() {
   return (

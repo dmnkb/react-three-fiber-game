@@ -1,14 +1,6 @@
 import React from 'react'
 import * as THREE from 'three';
-import { MeshProps } from '@react-three/fiber/dist/declarations/src/three-types';
-
-import Voxel, { Sides } from '../voxel/Voxel'
 import { Vector3 } from 'three';
-
-enum blockTypes {
-  dirt = 1,
-  rock = 2
-}
 
 /**
  * Convert a vector 3 coordinate to a flat array index
@@ -44,24 +36,32 @@ const isInBounds = (vec: Vector3, size: number) =>
   vec.y >= 0 && vec.y < size &&
   vec.z >= 0 && vec.z < size 
 
-const Terrain: React.FC = () => {
+enum blockTypes {
+  dirt = 1,
+  rock = 2
+}
 
-  let chunkScale = 256
+interface ChunkProps {
+  readonly offset: Vector3
+}
+
+const Chunk: React.FC<ChunkProps> = ({offset}) => {
+
+  let chunkScale = 32
   
   let voxelData = new Int8Array(Math.pow(chunkScale, 3))
 
-  let horFactor = .015;
-  let vertFactor = 36;
-  let heightLevel = chunkScale / 1.5;
+  let horFactor = 1;
+  let vertFactor = 15;
+  let heightLevel = chunkScale;
 
-  for (let x = 0; x < chunkScale; x++) {
-    for (let y = 0; y < chunkScale; y++) {
-      for (let z = 0; z < chunkScale; z++) {
-        if ( y < ((
-          Math.sin(x / chunkScale * 360 * horFactor) * 
-          Math.sin(z / chunkScale * 360 * horFactor)) * 
-          vertFactor + heightLevel / 2)) {
-            voxelData[vector3ToArrayIndex(x,y,z, chunkScale)] = blockTypes.dirt
+  for (let x = offset.x; x < offset.x + chunkScale; x++) {
+    for (let y = offset.y; y < offset.y + chunkScale; y++) {
+      for (let z = offset.z; z < offset.z + chunkScale; z++) {
+        let height = (Math.sin(x / chunkScale * Math.PI * 2) + Math.sin(z / chunkScale * Math.PI * 2)) * (chunkScale / 6) + (chunkScale / 2);
+        if ( y < height) {
+            voxelData[vector3ToArrayIndex(
+              x-offset.x, y-offset.y, z-offset.z, chunkScale)] = blockTypes.dirt
         }
       }
     }
@@ -69,7 +69,6 @@ const Terrain: React.FC = () => {
 
   const faceDirs = [
     {
-      dir: Sides.left,
       vec: [-1, 0, 0],
       corners: [
         [ 0, 1, 0 ],
@@ -79,7 +78,6 @@ const Terrain: React.FC = () => {
       ]
     },
     {
-      dir: Sides.right,
       vec: [1, 0, 0],
       corners: [
         [ 1, 1, 1 ],
@@ -89,7 +87,6 @@ const Terrain: React.FC = () => {
       ]
     },
     {
-      dir: Sides.bottom,
       vec: [0, -1, 0],
       corners: [
         [ 1, 0, 1 ],
@@ -99,7 +96,6 @@ const Terrain: React.FC = () => {
       ]
     },
     {
-      dir: Sides.top,
       vec: [0, 1, 0],
       corners: [
         [ 0, 1, 1 ],
@@ -109,7 +105,6 @@ const Terrain: React.FC = () => {
       ]
     },
     {
-      dir: Sides.back,
       vec: [0, 0, -1],
       corners: [
         [ 1, 0, 0 ],
@@ -119,7 +114,6 @@ const Terrain: React.FC = () => {
       ]
     },
     {
-      dir: Sides.front,
       vec: [0, 0, 1],
       corners: [
         [ 0, 0, 1 ],
@@ -137,9 +131,7 @@ const Terrain: React.FC = () => {
   Object.values(voxelData).forEach( (type: blockTypes | null, index: number) => {
 
     if (type !== 0) {
-
-      /* Face culling */
-      // let toHide: Sides[] = []
+      
       let thisCoords = arrayIndexToVector3(index, chunkScale)
 
       for (let i = 0; i < 6; i++) {
@@ -163,9 +155,9 @@ const Terrain: React.FC = () => {
           const ndx = positions.length / 3;
           for (const pos of faceDirs[i].corners) {
             positions.push(
-              pos[0] + thisCoords.x, 
-              pos[1] + thisCoords.y, 
-              pos[2] + thisCoords.z);
+              (pos[0] + thisCoords.x + offset.x), 
+              (pos[1] + thisCoords.y + offset.y), 
+              (pos[2] + thisCoords.z) + offset.z);
             let tempVec = [vec.x, vec.y, vec.z]
             normals.push(...tempVec);
           }
@@ -175,7 +167,7 @@ const Terrain: React.FC = () => {
           );
         }
 
-      } // End faceDirs loop
+      }
       
     }
 
@@ -186,27 +178,24 @@ const Terrain: React.FC = () => {
 
   const positionNumComponents = 3;
   const normalNumComponents = 3;
-  geometry.setAttribute(
-    'position',
-    new THREE.BufferAttribute(
-      new Float32Array(positions), 
-      positionNumComponents));
-  geometry.setAttribute(
-    'normal',
-    new THREE.BufferAttribute(
-      new Float32Array(normals), 
-      normalNumComponents));
+  geometry.setAttribute('position',
+    new THREE.BufferAttribute(new Float32Array(positions), positionNumComponents));
+  geometry.setAttribute('normal',
+    new THREE.BufferAttribute(new Float32Array(normals), normalNumComponents));
   geometry.setIndex(indices);
   
   return (
     <group position={[-chunkScale/2, -chunkScale/2, -chunkScale/2,]}>
       <mesh 
         geometry = {geometry}
-        material = {material}>
+        material = {material}
+        // receiveShadow
+        // castShadow={true}
+        >
       </mesh>
     </group>
   )
 
 }
 
-export default Terrain
+export default Chunk
