@@ -51,7 +51,8 @@ const Terrain: React.FC = () => {
   let voxelData = new Int8Array(Math.pow(chunkScale, 3))
 
   let horFactor = .015;
-  let vertFactor = 4;
+  let vertFactor = 5;
+  let heightLevel = 12;
 
   for (let x = 0; x < chunkScale; x++) {
     for (let y = 0; y < chunkScale; y++) {
@@ -59,7 +60,7 @@ const Terrain: React.FC = () => {
         if ( y < ((
           Math.sin(x / chunkScale * 360 * horFactor) * 
           Math.sin(z / chunkScale * 360 * horFactor)) * 
-          vertFactor + chunkScale / 2)) {
+          vertFactor + heightLevel / 2)) {
             voxelData[vector3ToArrayIndex(x,y,z, chunkScale)] = blockTypes.dirt
         }
       }
@@ -124,7 +125,7 @@ const Terrain: React.FC = () => {
         return (
           (type !== 0) &&
             <Voxel 
-              meshProps={{ position: thisCoords } as MeshProps} 
+              position={thisCoords}
               hideSides={toHide}
               key={`${thisCoords.x}-${thisCoords.y}-${thisCoords.z}`}
               >

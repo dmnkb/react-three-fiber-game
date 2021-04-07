@@ -1,6 +1,7 @@
 import React from 'react'
-import * as THREE from 'three';
+import { Vector3 } from 'three';
 import { MeshProps } from '@react-three/fiber/dist/declarations/src/three-types';
+import { Plane } from '@react-three/drei'
 
 export enum Sides {
   back = 0,
@@ -16,47 +17,71 @@ export type voxelSide =
   Sides.bottom | Sides.front | Sides.back
 
 interface VoxelProps {
-  readonly meshProps?: MeshProps,
+  readonly position: Vector3
   readonly hideSides?: voxelSide[]
+  readonly meshProps?: MeshProps
 }
 
-const Voxel: React.FC<VoxelProps> = ({meshProps, hideSides, children}) => {
+const Voxel: React.FC<VoxelProps> = ({meshProps, hideSides, position, children}) => {
 
-  // prettier-ignore
-  const cubeVertices = [
-    -1,-1,-1,    1,-1,-1,    1, 1,-1,    -1, 1,-1,
-    -1,-1, 1,    1,-1, 1,    1, 1, 1,    -1, 1, 1,
+  let cubeTransformations = [
+    {
+      dir: Sides.left,
+      vec: [-.5, 0, 0],
+      rotate: [0, -90, 0]
+    },
+    {
+      dir: Sides.right,
+      vec: [.5, 0, 0],
+      rotate: [0, 90, 0]
+    },
+    {
+      dir: Sides.bottom,
+      vec: [0, -.5, 0],
+      rotate: [90, 0, 0]
+    },
+    {
+      dir: Sides.top,
+      vec: [0, .5, 0],
+      rotate: [-90, 0, 0]
+    },
+    {
+      dir: Sides.back,
+      vec: [0, 0, -.5],
+      rotate: [0, 180, 0]
+    },
+    {
+      dir: Sides.front,
+      vec: [0, 0, .5],
+      rotate: [0, 0, 0]
+    },
   ];
-
-  // prettier-ignore
-  const cubeFaces = [
-    2,1,0,    0,3,2,
-    0,4,7,    7,3,0,
-    0,1,5,    5,4,0,
-    1,2,6,    6,5,1,
-    2,3,7,    7,6,2,
-    4,5,6,    6,7,4
-  ];
-
-  hideSides?.sort().reverse().forEach((side: voxelSide, i: number) => {
-    for (let i = 0; i < 6; i++) {
-      cubeFaces.splice(side * 6, 1)
-    }
-  }) 
-
-  let geometry = new THREE.PolyhedronGeometry( cubeVertices, cubeFaces, .87, 0 )
 
   return (    
-    <mesh 
-      geometry={geometry} 
-      castShadow={true}
-      receiveShadow={true}
-      {...meshProps}>
-      <meshStandardMaterial 
-        color={0x346A4E}
-        />
-      {children}
-    </mesh>    
+    <>
+      {cubeTransformations.map((side, i) => {
+        if (!hideSides?.includes(side.dir)) {
+          return <Plane
+            args={[1, 1]}
+            receiveShadow
+            castShadow={true}
+            position={[
+              position.x + side.vec[0],
+              position.y + side.vec[1],
+              position.z + side.vec[2]
+            ]}
+            rotation={[
+              side.rotate[0] * Math.PI / 180,
+              side.rotate[1] * Math.PI / 180,
+              side.rotate[2] * Math.PI / 180,
+            ]}
+            {...meshProps as any}
+            >      
+            <meshStandardMaterial color={0x346A4E} />
+          </Plane>
+        }
+      })}
+    </>
   )
 }
 export default Voxel;
