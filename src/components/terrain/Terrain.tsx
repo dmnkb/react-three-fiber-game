@@ -46,13 +46,13 @@ const isInBounds = (vec: Vector3, size: number) =>
 
 const Terrain: React.FC = () => {
 
-  let chunkScale = 16
+  let chunkScale = 256
   
   let voxelData = new Int8Array(Math.pow(chunkScale, 3))
 
   let horFactor = .015;
-  let vertFactor = 5;
-  let heightLevel = 12;
+  let vertFactor = 36;
+  let heightLevel = chunkScale / 1.5;
 
   for (let x = 0; x < chunkScale; x++) {
     for (let y = 0; y < chunkScale; y++) {
@@ -67,81 +67,143 @@ const Terrain: React.FC = () => {
     }
   }
 
-  let faceDirs = [
+  const faceDirs = [
     {
       dir: Sides.left,
       vec: [-1, 0, 0],
+      corners: [
+        [ 0, 1, 0 ],
+        [ 0, 0, 0 ],
+        [ 0, 1, 1 ],
+        [ 0, 0, 1 ],
+      ]
     },
     {
       dir: Sides.right,
       vec: [1, 0, 0],
+      corners: [
+        [ 1, 1, 1 ],
+        [ 1, 0, 1 ],
+        [ 1, 1, 0 ],
+        [ 1, 0, 0 ],
+      ]
     },
     {
       dir: Sides.bottom,
       vec: [0, -1, 0],
+      corners: [
+        [ 1, 0, 1 ],
+        [ 0, 0, 1 ],
+        [ 1, 0, 0 ],
+        [ 0, 0, 0 ],
+      ]
     },
     {
       dir: Sides.top,
       vec: [0, 1, 0],
+      corners: [
+        [ 0, 1, 1 ],
+        [ 1, 1, 1 ],
+        [ 0, 1, 0 ],
+        [ 1, 1, 0 ],
+      ]
     },
     {
       dir: Sides.back,
       vec: [0, 0, -1],
+      corners: [
+        [ 1, 0, 0 ],
+        [ 0, 0, 0 ],
+        [ 1, 1, 0 ],
+        [ 0, 1, 0 ],
+      ]
     },
     {
       dir: Sides.front,
       vec: [0, 0, 1],
-    },
-  ];
+      corners: [
+        [ 0, 0, 1 ],
+        [ 1, 0, 1 ],
+        [ 0, 1, 1 ],
+        [ 1, 1, 1 ],
+      ]
+    }
+  ]
+
+  const positions: number[] = []
+  const normals: number[] = []
+  const indices: number[] = []
+
+  Object.values(voxelData).forEach( (type: blockTypes | null, index: number) => {
+
+    if (type !== 0) {
+
+      /* Face culling */
+      // let toHide: Sides[] = []
+      let thisCoords = arrayIndexToVector3(index, chunkScale)
+
+      for (let i = 0; i < 6; i++) {
+
+        let vec: Vector3 = new Vector3(...faceDirs[i].vec)
+        let neighborCoords = new Vector3(
+          thisCoords.x + vec.x,
+          thisCoords.y + vec.y,
+          thisCoords.z + vec.z)
+
+        let neighbor = voxelData[
+          vector3ToArrayIndex(
+            neighborCoords.x,
+            neighborCoords.y, 
+            neighborCoords.z, 
+            chunkScale)]
+
+        // Restult is valid (= inside chunk) && no neighbor
+        if (isInBounds(neighborCoords, chunkScale) && neighbor === 0) {
+          // Draw face at given coords at given side
+          const ndx = positions.length / 3;
+          for (const pos of faceDirs[i].corners) {
+            positions.push(
+              pos[0] + thisCoords.x, 
+              pos[1] + thisCoords.y, 
+              pos[2] + thisCoords.z);
+            let tempVec = [vec.x, vec.y, vec.z]
+            normals.push(...tempVec);
+          }
+          indices.push(
+            ndx, ndx + 1, ndx + 2,
+            ndx + 2, ndx + 1, ndx + 3,
+          );
+        }
+
+      } // End faceDirs loop
+      
+    }
+
+  })
+
+  const geometry = new THREE.BufferGeometry();
+  const material = new THREE.MeshLambertMaterial({color: 0x346A4E});
+
+  const positionNumComponents = 3;
+  const normalNumComponents = 3;
+  geometry.setAttribute(
+    'position',
+    new THREE.BufferAttribute(
+      new Float32Array(positions), 
+      positionNumComponents));
+  geometry.setAttribute(
+    'normal',
+    new THREE.BufferAttribute(
+      new Float32Array(normals), 
+      normalNumComponents));
+  geometry.setIndex(indices);
   
   return (
     <group position={[-chunkScale/2, -chunkScale/2, -chunkScale/2,]}>
-      {Object.values(voxelData).map((type: blockTypes | null, index: number) => {
-
-        /* Face culling */
-
-        let toHide: Sides[] = []
-        let thisCoords = arrayIndexToVector3(index, chunkScale)
-
-        Object.keys(faceDirs).forEach((_, i) => {
-          let vec: Vector3 = new Vector3(...faceDirs[i].vec)
-          let neighborCoords = new Vector3(
-            thisCoords.x + vec.x,
-            thisCoords.y + vec.y,
-            thisCoords.z + vec.z
-          )
-          let neighbor = voxelData[
-            vector3ToArrayIndex(
-              neighborCoords.x,
-              neighborCoords.y, 
-              neighborCoords.z, 
-              chunkScale)]
-          
-          if (!isInBounds(neighborCoords, chunkScale) || neighbor !== 0) {
-            toHide.push(faceDirs[i].dir)
-          }
-        })
-        
-        return (
-          (type !== 0) &&
-            <Voxel 
-              position={thisCoords}
-              hideSides={toHide}
-              key={`${thisCoords.x}-${thisCoords.y}-${thisCoords.z}`}
-              >
-              {/* <Text
-                color={0x000}                
-                fontSize={.1}
-                lineHeight={1}
-                textAlign={'center'}
-                anchorX="center"
-                anchorY="middle"
-                >
-                {type}
-              </Text> */}
-            </Voxel>
-        );
-      })}
+      <mesh 
+        geometry = {geometry}
+        material = {material}>
+      </mesh>
     </group>
   )
 

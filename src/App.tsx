@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { ReactThreeFiber, Canvas } from '@react-three/fiber'
 import { MeshProps } from '@react-three/fiber/dist/declarations/src/three-types';
 import { Physics, usePlane, useBox } from '@react-three/cannon'
+import * as shapes from '@react-three/drei'
 import { 
   Box, 
   OrbitControls, 
@@ -62,12 +63,7 @@ const Scene = () => {
           sunPosNorm[2] * sunDistance
         ]}
         intensity={1.5}/>
-        
       <Terrain />
-      
-      {/* <axesHelper scale={[2,2,2]}/> */}
-      {/* <MyPlane/> */}
-      
     </>
   )
 
