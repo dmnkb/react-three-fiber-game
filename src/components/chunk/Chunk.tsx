@@ -51,75 +51,81 @@ const Chunk: React.FC<ChunkProps> = ({offset}) => {
   
   let voxelData = new Int8Array(Math.pow(chunkScale, 3))
 
-  let horFactor = 1;
-  let vertFactor = 15;
-  let heightLevel = chunkScale;
+  const tileSize = 16;
+  const tileTextureWidth = 256;
+  const tileTextureHeight = 64;
 
   for (let x = offset.x; x < offset.x + chunkScale; x++) {
     for (let y = offset.y; y < offset.y + chunkScale; y++) {
       for (let z = offset.z; z < offset.z + chunkScale; z++) {
         let height = (Math.sin(x / chunkScale * Math.PI * 2) + Math.sin(z / chunkScale * Math.PI * 2)) * (chunkScale / 6) + (chunkScale / 2);
         if ( y < height) {
-            voxelData[vector3ToArrayIndex(
-              x-offset.x, y-offset.y, z-offset.z, chunkScale)] = blockTypes.dirt
+          voxelData[vector3ToArrayIndex(
+            x-offset.x, y-offset.y, z-offset.z, chunkScale)] = (y > 16) ? blockTypes.rock : blockTypes.dirt
         }
       }
     }
   }
 
   const faceDirs = [
-    {
+    { // left
+      uvRow: 0,
       vec: [-1, 0, 0],
       corners: [
-        [ 0, 1, 0 ],
-        [ 0, 0, 0 ],
-        [ 0, 1, 1 ],
-        [ 0, 0, 1 ],
+        { pos: [ 0, 1, 0 ], uv: [ 0, 1 ], },
+        { pos: [ 0, 0, 0 ], uv: [ 0, 0 ], },
+        { pos: [ 0, 1, 1 ], uv: [ 1, 1 ], },
+        { pos: [ 0, 0, 1 ], uv: [ 1, 0 ], },
       ]
     },
-    {
+    { // right
+      uvRow: 0,
       vec: [1, 0, 0],
       corners: [
-        [ 1, 1, 1 ],
-        [ 1, 0, 1 ],
-        [ 1, 1, 0 ],
-        [ 1, 0, 0 ],
+        { pos: [ 1, 1, 1 ], uv: [ 0, 1 ], },
+        { pos: [ 1, 0, 1 ], uv: [ 0, 0 ], },
+        { pos: [ 1, 1, 0 ], uv: [ 1, 1 ], },
+        { pos: [ 1, 0, 0 ], uv: [ 1, 0 ], },
       ]
     },
-    {
+    { // bottom
+      uvRow: 1,
       vec: [0, -1, 0],
       corners: [
-        [ 1, 0, 1 ],
-        [ 0, 0, 1 ],
-        [ 1, 0, 0 ],
-        [ 0, 0, 0 ],
+        { pos: [ 1, 0, 1 ], uv: [ 1, 0 ], },
+        { pos: [ 0, 0, 1 ], uv: [ 0, 0 ], },
+        { pos: [ 1, 0, 0 ], uv: [ 1, 1 ], },
+        { pos: [ 0, 0, 0 ], uv: [ 0, 1 ], },
       ]
     },
-    {
+    { // top
+      uvRow: 2,
       vec: [0, 1, 0],
       corners: [
-        [ 0, 1, 1 ],
-        [ 1, 1, 1 ],
-        [ 0, 1, 0 ],
-        [ 1, 1, 0 ],
+        { pos: [ 0, 1, 1 ], uv: [ 1, 1 ], },
+        { pos: [ 1, 1, 1 ], uv: [ 0, 1 ], },
+        { pos: [ 0, 1, 0 ], uv: [ 1, 0 ], },
+        { pos: [ 1, 1, 0 ], uv: [ 0, 0 ], },
       ]
     },
-    {
+    { // back
+      uvRow: 0,
       vec: [0, 0, -1],
       corners: [
-        [ 1, 0, 0 ],
-        [ 0, 0, 0 ],
-        [ 1, 1, 0 ],
-        [ 0, 1, 0 ],
+        { pos: [ 1, 0, 0 ], uv: [ 0, 0 ], },
+        { pos: [ 0, 0, 0 ], uv: [ 1, 0 ], },
+        { pos: [ 1, 1, 0 ], uv: [ 0, 1 ], },
+        { pos: [ 0, 1, 0 ], uv: [ 1, 1 ], },
       ]
     },
-    {
+    { // front
+      uvRow: 0,
       vec: [0, 0, 1],
       corners: [
-        [ 0, 0, 1 ],
-        [ 1, 0, 1 ],
-        [ 0, 1, 1 ],
-        [ 1, 1, 1 ],
+        { pos: [ 0, 0, 1 ], uv: [ 0, 0 ], },
+        { pos: [ 1, 0, 1 ], uv: [ 1, 0 ], },
+        { pos: [ 0, 1, 1 ], uv: [ 0, 1 ], },
+        { pos: [ 1, 1, 1 ], uv: [ 1, 1 ], },
       ]
     }
   ]
@@ -127,20 +133,22 @@ const Chunk: React.FC<ChunkProps> = ({offset}) => {
   const positions: number[] = []
   const normals: number[] = []
   const indices: number[] = []
+  const uvs: number[] = [];
 
-  Object.values(voxelData).forEach( (type: blockTypes | null, index: number) => {
+  Object.values(voxelData).forEach( (type: blockTypes, index: number) => {
 
     if (type !== 0) {
+
+      const uvVoxel = type - 1;  // voxel 0 is sky so for UVs we start at 0
       
       let thisCoords = arrayIndexToVector3(index, chunkScale)
-
-      for (let i = 0; i < 6; i++) {
-
-        let vec: Vector3 = new Vector3(...faceDirs[i].vec)
+      
+      for (const {uvRow, vec, corners} of faceDirs)  {
+        
         let neighborCoords = new Vector3(
-          thisCoords.x + vec.x,
-          thisCoords.y + vec.y,
-          thisCoords.z + vec.z)
+          thisCoords.x + vec[0],
+          thisCoords.y + vec[1],
+          thisCoords.z + vec[2])
 
         let neighbor = voxelData[
           vector3ToArrayIndex(
@@ -153,18 +161,20 @@ const Chunk: React.FC<ChunkProps> = ({offset}) => {
         if (!isInBounds(neighborCoords, chunkScale) || neighbor === 0) {
           // Draw face at given coords at given side
           const ndx = positions.length / 3;
-          for (const pos of faceDirs[i].corners) {
+          for (const {pos, uv} of corners) {
             positions.push(
               (pos[0] + thisCoords.x + offset.x), 
               (pos[1] + thisCoords.y + offset.y), 
               (pos[2] + thisCoords.z) + offset.z);
-            let tempVec = [vec.x, vec.y, vec.z]
-            normals.push(...tempVec);
+            normals.push(...[vec[0], vec[1], vec[2]]);
+            uvs.push(
+                (uvVoxel +   uv[0]) * tileSize / tileTextureWidth,
+              1-(uvRow + 1 - uv[1]) * tileSize / tileTextureHeight);
           }
           indices.push(
             ndx, ndx + 1, ndx + 2,
             ndx + 2, ndx + 1, ndx + 3,
-          );
+          )
         }
 
       }
@@ -174,14 +184,28 @@ const Chunk: React.FC<ChunkProps> = ({offset}) => {
   })
 
   const geometry = new THREE.BufferGeometry();
-  const material = new THREE.MeshLambertMaterial({color: 0x346A4E});
+
+  const texture = new THREE.TextureLoader().load('./textures/terrain.png');
+  texture.magFilter = THREE.NearestFilter;
+  texture.minFilter = THREE.NearestMipmapLinearFilter;
+
+  const material = new THREE.MeshStandardMaterial({
+    map: texture,
+    side: THREE.FrontSide,
+    alphaTest: 0.1,
+    transparent: true,
+  });
 
   const positionNumComponents = 3;
   const normalNumComponents = 3;
+  const uvNumComponents = 2;
+
   geometry.setAttribute('position',
     new THREE.BufferAttribute(new Float32Array(positions), positionNumComponents));
   geometry.setAttribute('normal',
     new THREE.BufferAttribute(new Float32Array(normals), normalNumComponents));
+    geometry.setAttribute('uv',
+      new THREE.BufferAttribute(new Float32Array(uvs), uvNumComponents));
   geometry.setIndex(indices);
   
   return (

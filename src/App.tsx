@@ -1,49 +1,26 @@
-import * as THREE from 'three';
-import { ReactThreeFiber, Canvas } from '@react-three/fiber'
-import { MeshProps } from '@react-three/fiber/dist/declarations/src/three-types';
-import { Physics, usePlane, useBox } from '@react-three/cannon'
-import * as shapes from '@react-three/drei'
+import './App.scss';
+import { useRef, useEffect } from 'react'
+import { Vector3 } from 'three';
+import { ReactThreeFiber, Canvas, useThree, useFrame } from '@react-three/fiber'
+import { Physics } from '@react-three/cannon'
+
 import { 
-  Box, 
   OrbitControls, 
-  Plane, 
   Sky, 
-  Stats,  
-  useTexture 
+  Stats
 } from '@react-three/drei'
 
 import Chunk from './components/chunk/Chunk'
+import { ShaderEffects } from './Effects'
 
-import './App.scss';
-import { Vector3 } from 'three';
-
-const MyPlane: React.FC<MeshProps> = (props: MeshProps) => {
-
-  const [ref] = usePlane(() => ({ rotation: [-Math.PI / 2, 0, 0] }))
-
-  const texture = new THREE.TextureLoader().load('./textures/grass.jpg');
-  texture.wrapS = texture.wrapT = THREE.RepeatWrapping
-  texture.repeat.set(128,128)
-
-  return (
-    <Plane
-      args={[1000, 1000]}
-      ref={ref}
-      receiveShadow
-      {...props as any}
-      >      
-      <meshStandardMaterial map={texture} /> :
-    </Plane>
-  )
-}
 
 const Scene = () => {
 
-  let sunPosNorm: ReactThreeFiber.Vector3 = [.25,.1,.5]
+  let sunPosNorm: ReactThreeFiber.Vector3 = [.25,.8,.5]
   let sunDistance = 200
   
-  let loadChunkX = 8
-  let loadChunkZ = 8
+  let loadChunkX = 6
+  let loadChunkZ = 6
 
   return (
     <>
@@ -57,15 +34,20 @@ const Scene = () => {
         azimuth={0.25}
         sunPosition={[...sunPosNorm]}
       />
-      <ambientLight intensity={.5}/>
-      <directionalLight
+      <ambientLight 
+        intensity={.25}
+        color={0xffffff}        
+        />
+      {/* <directionalLight
         castShadow
         position={[
           sunPosNorm[0] * sunDistance,
           sunPosNorm[1] * sunDistance,
           sunPosNorm[2] * sunDistance
         ]}
-        intensity={1.5}/>
+        intensity={.5}
+        color={'orange'}
+        /> */}
     
       <group position={[-((loadChunkX-1)*32)/2, 0, -((loadChunkZ-1)*32)/2]}>
         {[...Array(loadChunkX)].map((_, x) => {
@@ -74,20 +56,19 @@ const Scene = () => {
           })
         })}
       </group>
+      
     </>
   )
 
-  
-
 }
 
-
 function App() {
+
   return (
     <Canvas
       shadows
       camera={{
-        position: [0, 3, 15],
+        position: [0, 16, 32],
         fov: 50
       }}
       >
@@ -96,6 +77,7 @@ function App() {
       </Physics>
       <OrbitControls />
       <Stats />
+      <ShaderEffects />
     </Canvas>
   );
 }
