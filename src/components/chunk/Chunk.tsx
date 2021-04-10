@@ -36,10 +36,14 @@ const isInBounds = (vec: Vector3, size: number) =>
   vec.y >= 0 && vec.y < size &&
   vec.z >= 0 && vec.z < size 
 
-enum blockTypes {
+enum BlockTypes {
   dirt = 1,
   rock = 2
 }
+
+type BlockType = 0 | BlockTypes.dirt | BlockTypes.rock
+
+type Side = "left" | "right" | "bottom" | "top" | "back" | "front"
 
 interface ChunkProps {
   readonly offset: Vector3
@@ -61,14 +65,15 @@ const Chunk: React.FC<ChunkProps> = ({offset}) => {
         let height = (Math.sin(x / chunkScale * Math.PI * 2) + Math.sin(z / chunkScale * Math.PI * 2)) * (chunkScale / 6) + (chunkScale / 2);
         if ( y < height) {
           voxelData[vector3ToArrayIndex(
-            x-offset.x, y-offset.y, z-offset.z, chunkScale)] = (y > 16) ? blockTypes.rock : blockTypes.dirt
+            x-offset.x, y-offset.y, z-offset.z, chunkScale)] = BlockTypes.dirt
         }
       }
     }
   }
 
-  const faceDirs = [
-    { // left
+  const faces: Side[] = ["left", "right", "bottom", "top", "back", "front"]
+  const faceDirs = {
+    "left": {
       uvRow: 0,
       vec: [-1, 0, 0],
       corners: [
@@ -78,7 +83,7 @@ const Chunk: React.FC<ChunkProps> = ({offset}) => {
         { pos: [ 0, 0, 1 ], uv: [ 1, 0 ], },
       ]
     },
-    { // right
+    "right": {
       uvRow: 0,
       vec: [1, 0, 0],
       corners: [
@@ -88,7 +93,7 @@ const Chunk: React.FC<ChunkProps> = ({offset}) => {
         { pos: [ 1, 0, 0 ], uv: [ 1, 0 ], },
       ]
     },
-    { // bottom
+    "bottom": {
       uvRow: 1,
       vec: [0, -1, 0],
       corners: [
@@ -98,7 +103,7 @@ const Chunk: React.FC<ChunkProps> = ({offset}) => {
         { pos: [ 0, 0, 0 ], uv: [ 0, 1 ], },
       ]
     },
-    { // top
+    "top": {
       uvRow: 2,
       vec: [0, 1, 0],
       corners: [
@@ -108,7 +113,7 @@ const Chunk: React.FC<ChunkProps> = ({offset}) => {
         { pos: [ 1, 1, 0 ], uv: [ 0, 0 ], },
       ]
     },
-    { // back
+    "back": {
       uvRow: 0,
       vec: [0, 0, -1],
       corners: [
@@ -118,7 +123,7 @@ const Chunk: React.FC<ChunkProps> = ({offset}) => {
         { pos: [ 0, 1, 0 ], uv: [ 1, 1 ], },
       ]
     },
-    { // front
+    "front": {
       uvRow: 0,
       vec: [0, 0, 1],
       corners: [
@@ -127,28 +132,30 @@ const Chunk: React.FC<ChunkProps> = ({offset}) => {
         { pos: [ 0, 1, 1 ], uv: [ 0, 1 ], },
         { pos: [ 1, 1, 1 ], uv: [ 1, 1 ], },
       ]
-    }
-  ]
+    } 
+  }
 
   const positions: number[] = []
   const normals: number[] = []
   const indices: number[] = []
   const uvs: number[] = [];
-
-  Object.values(voxelData).forEach( (type: blockTypes, index: number) => {
+  
+  voxelData.forEach( (type: BlockType, index: number) => {
 
     if (type !== 0) {
 
-      const uvVoxel = type - 1;  // voxel 0 is sky so for UVs we start at 0
+      const uvTextureOffset = type - 1;  // voxel 0 is sky so for UVs we start at 0
       
       let thisCoords = arrayIndexToVector3(index, chunkScale)
       
-      for (const {uvRow, vec, corners} of faceDirs)  {
+      faces.forEach( (side: Side) => {
+
+        let thisSide = faceDirs[side]
         
         let neighborCoords = new Vector3(
-          thisCoords.x + vec[0],
-          thisCoords.y + vec[1],
-          thisCoords.z + vec[2])
+          thisCoords.x + thisSide.vec[0],
+          thisCoords.y + thisSide.vec[1],
+          thisCoords.z + thisSide.vec[2])
 
         let neighbor = voxelData[
           vector3ToArrayIndex(
@@ -156,29 +163,54 @@ const Chunk: React.FC<ChunkProps> = ({offset}) => {
             neighborCoords.y, 
             neighborCoords.z, 
             chunkScale)]
-
-        // For the time being we draw faces at the edges of chunks
+        
         if (!isInBounds(neighborCoords, chunkScale) || neighbor === 0) {
-          // Draw face at given coords at given side
+
           const ndx = positions.length / 3;
-          for (const {pos, uv} of corners) {
+          indices.push(
+            ndx, ndx + 1, ndx + 2,
+            ndx + 2, ndx + 1, ndx + 3)
+
+          for (const {pos, uv} of thisSide.corners) {
+
+            // Positions
             positions.push(
               (pos[0] + thisCoords.x + offset.x), 
               (pos[1] + thisCoords.y + offset.y), 
               (pos[2] + thisCoords.z) + offset.z);
-            normals.push(...[vec[0], vec[1], vec[2]]);
-            uvs.push(
-                (uvVoxel +   uv[0]) * tileSize / tileTextureWidth,
-              1-(uvRow + 1 - uv[1]) * tileSize / tileTextureHeight);
+
+            // Normals
+            normals.push(...[thisSide.vec[0], thisSide.vec[1], thisSide.vec[2]])           
+
+            // UVs
+
+            // Special condition: Dirt has another texture 
+            // on it's sides when there is a neighbor above.
+
+            let hasTopNeighbor = voxelData[vector3ToArrayIndex(
+              thisCoords.x + faceDirs["top"].vec[0],
+              thisCoords.y + faceDirs["top"].vec[1],
+              thisCoords.z + faceDirs["top"].vec[2],
+              chunkScale)] !== 0
+
+            let isBlockHorizontallSide = side !== "top" && side !== "bottom"
+
+            if (type === BlockTypes.dirt && hasTopNeighbor && isBlockHorizontallSide) {
+              uvs.push(
+                (uvTextureOffset + uv[0]) * tileSize / tileTextureWidth,
+              1-(faceDirs["bottom"].uvRow + 1 - uv[1]) * tileSize / tileTextureHeight)
+            } else {
+              uvs.push(
+                (uvTextureOffset + uv[0]) * tileSize / tileTextureWidth,
+                1-(thisSide.uvRow + 1 - uv[1]) * tileSize / tileTextureHeight)
+            }
+          
           }
-          indices.push(
-            ndx, ndx + 1, ndx + 2,
-            ndx + 2, ndx + 1, ndx + 3,
-          )
+
         }
 
-      }
-      
+      })
+    
     }
 
   })
@@ -186,13 +218,14 @@ const Chunk: React.FC<ChunkProps> = ({offset}) => {
   const geometry = new THREE.BufferGeometry();
 
   const texture = new THREE.TextureLoader().load('./textures/terrain.png');
+  texture.encoding = THREE.sRGBEncoding
   texture.magFilter = THREE.NearestFilter;
   texture.minFilter = THREE.NearestMipmapLinearFilter;
 
-  const material = new THREE.MeshStandardMaterial({
+  const material = new THREE.MeshBasicMaterial({
     map: texture,
     side: THREE.FrontSide,
-    alphaTest: 0.1,
+    alphaTest: 0,
     transparent: true,
   });
 
@@ -210,12 +243,7 @@ const Chunk: React.FC<ChunkProps> = ({offset}) => {
   
   return (
     <group position={[-chunkScale/2, -chunkScale/2, -chunkScale/2,]}>
-      <mesh 
-        geometry = {geometry}
-        material = {material}
-        // receiveShadow
-        // castShadow={true}
-        >
+      <mesh geometry={geometry} material={material}>
       </mesh>
     </group>
   )
