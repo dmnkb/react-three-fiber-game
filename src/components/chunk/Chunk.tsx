@@ -1,8 +1,13 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import * as THREE from 'three';
 import { Vector3 } from 'three';
+import { Text } from '@react-three/drei'
 
 import Perlin from '../../util/perlin.js'
+
+import * as Comlink from 'comlink';
+//@ts-ignore
+import Worker from "worker-loader!./terrainGeneratorWorker.js" // eslint-disable-line import/no-webpack-loader-syntax
 
 /**
  * Convert a vector 3 coordinate to a flat array index
@@ -51,18 +56,10 @@ interface ChunkProps {
   readonly offset: Vector3
 }
 
-const pn = new Perlin(123);
+const pn = new Perlin("Anna");
 
-const Chunk: React.FC<ChunkProps> = ({offset}) => {
-
-  let chunkScale = 32
-  
+const calculateTerrain = async (offset: Vector3, chunkScale: number) => {
   let voxelData = new Int8Array(Math.pow(chunkScale, 3))
-
-  const tileSize = 16;
-  const tileTextureWidth = 256;
-  const tileTextureHeight = 64;
-
   let terrainLevel = chunkScale/2
 
   for (let x = offset.x; x < offset.x + chunkScale; x++) {
@@ -70,12 +67,56 @@ const Chunk: React.FC<ChunkProps> = ({offset}) => {
       for (let z = offset.z; z < offset.z + chunkScale; z++) {        
         terrainLevel = (pn.noise(x/chunkScale, 0, z/chunkScale) * chunkScale)
         if ( y < (terrainLevel) ) {
-          voxelData[vector3ToArrayIndex(
-            x-offset.x, y-offset.y, z-offset.z, chunkScale)] = BlockTypes.dirt
+          if ( y < (terrainLevel - 2) ) {
+            voxelData[vector3ToArrayIndex(
+              x-offset.x, y-offset.y, z-offset.z, chunkScale)] = BlockTypes.rock
+          } else {
+            voxelData[vector3ToArrayIndex(
+              x-offset.x, y-offset.y, z-offset.z, chunkScale)] = BlockTypes.dirt
+          }
         }
       }
     }
   }
+  
+  return Promise.resolve(voxelData)
+  
+}
+
+const Chunk: React.FC<ChunkProps> = ({offset}) => {
+
+  let chunkScale = 32
+
+  const [loading, setLoading] = useState(true)
+  const [voxelData, setVoxelData] = useState(new Int8Array(Math.pow(chunkScale, 3)))
+
+  const tileTextureWidth = 256;
+  const tileTextureHeight = 64;
+  const tileSize = 16;
+
+  function callback(value: any) {
+    setLoading(false)
+    setVoxelData(value)
+  }
+  async function init(offset: Vector3, chunkScale: number) {
+    const worker = new Worker();
+    const remoteFunction: any = Comlink.wrap(worker);
+    await remoteFunction(Comlink.proxy(callback), offset, chunkScale);
+  }
+
+  useEffect(() => {
+
+    /* Standard asnc */
+    // calculateTerrain(offset, chunkScale).then((data) => {
+    //   setVoxelData(data)
+    //   setLoading(false)
+    // })
+
+    /* Multithreaded async */
+    init(offset, chunkScale);
+  },[])
+
+  
 
   const faces: Side[] = ["left", "right", "bottom", "top", "back", "front"]
   const faceDirs = {
@@ -144,7 +185,7 @@ const Chunk: React.FC<ChunkProps> = ({offset}) => {
   const positions: number[] = []
   const normals: number[] = []
   const indices: number[] = []
-  const uvs: number[] = [];
+  const uvs: number[] = []
   
   voxelData.forEach( (type: BlockType, index: number) => {
 
@@ -222,7 +263,6 @@ const Chunk: React.FC<ChunkProps> = ({offset}) => {
   })
 
   const geometry = new THREE.BufferGeometry();
-
   const texture = new THREE.TextureLoader().load('./textures/terrain.png');
   texture.encoding = THREE.sRGBEncoding
   texture.magFilter = THREE.NearestFilter;
@@ -245,13 +285,28 @@ const Chunk: React.FC<ChunkProps> = ({offset}) => {
     new THREE.BufferAttribute(new Float32Array(normals), normalNumComponents));
     geometry.setAttribute('uv',
       new THREE.BufferAttribute(new Float32Array(uvs), uvNumComponents));
-  geometry.setIndex(indices);
+  geometry.setIndex(indices);  
   
   return (
-    <group position={[-chunkScale/2, -chunkScale/2, -chunkScale/2,]}>
-      <mesh geometry={geometry} material={material}>
-      </mesh>
-    </group>
+    loading ? 
+    <Text
+      color={0x000}
+      position={new Vector3(
+        offset.x + chunkScale/2,
+        offset.y,
+        offset.z + chunkScale/2
+        )}
+      fontSize={3}
+      lineHeight={1}
+      letterSpacing={-0.08}
+      textAlign={'center'}
+      anchorX="center"
+      anchorY="middle"
+    >Loading</Text> :
+      <group position={[-chunkScale/2, -chunkScale/2, -chunkScale/2,]}>
+        <mesh geometry={geometry && geometry} material={material}>
+        </mesh>
+      </group>
   )
 
 }
