@@ -2,6 +2,8 @@ import React from 'react'
 import * as THREE from 'three';
 import { Vector3 } from 'three';
 
+import Perlin from '../../util/perlin.js'
+
 /**
  * Convert a vector 3 coordinate to a flat array index
  * @param x {number} The x coordinate
@@ -49,6 +51,8 @@ interface ChunkProps {
   readonly offset: Vector3
 }
 
+const pn = new Perlin(123);
+
 const Chunk: React.FC<ChunkProps> = ({offset}) => {
 
   let chunkScale = 32
@@ -59,11 +63,13 @@ const Chunk: React.FC<ChunkProps> = ({offset}) => {
   const tileTextureWidth = 256;
   const tileTextureHeight = 64;
 
+  let terrainLevel = chunkScale/2
+
   for (let x = offset.x; x < offset.x + chunkScale; x++) {
     for (let y = offset.y; y < offset.y + chunkScale; y++) {
-      for (let z = offset.z; z < offset.z + chunkScale; z++) {
-        let height = (Math.sin(x / chunkScale * Math.PI * 2) + Math.sin(z / chunkScale * Math.PI * 2)) * (chunkScale / 6) + (chunkScale / 2);
-        if ( y < height) {
+      for (let z = offset.z; z < offset.z + chunkScale; z++) {        
+        terrainLevel = (pn.noise(x/chunkScale, 0, z/chunkScale) * chunkScale)
+        if ( y < (terrainLevel) ) {
           voxelData[vector3ToArrayIndex(
             x-offset.x, y-offset.y, z-offset.z, chunkScale)] = BlockTypes.dirt
         }
