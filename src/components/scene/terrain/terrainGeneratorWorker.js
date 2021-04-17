@@ -384,22 +384,24 @@ function Perlin(seed) {
  * @param y {number} The y coordinate
  * @param z {number} The z coordinate
  * @param size {number} The size of each dimension, the size is the same for each one
- */
- const vector3ToArrayIndex = (x, y, z, size = 32) =>
- (size * size * x) + (size * y) + z;
+  */
+const vector3ToArrayIndex = (x, y, z, size = 32) =>
+  (size * size * x) + (size * y) + z;
 
 const calculateTerrain = async (offset, chunkScale) => {  
   let voxelData = new Int8Array(Math.pow(chunkScale, 3))
-  let terrainLevel = chunkScale/2
+  let terrainLevel = 0
   const pn = new Perlin("Anna");
 
   for (let x = offset.x; x < offset.x + chunkScale; x++) {
     for (let y = offset.y; y < offset.y + chunkScale; y++) {
       for (let z = offset.z; z < offset.z + chunkScale; z++) {        
         terrainLevel = (pn.noise(x/chunkScale, 0, z/chunkScale) * chunkScale)
+
+        let vertOffset = -8
         
-        if ( y < (terrainLevel) ) {
-          if ( y < (terrainLevel - 2) ) {
+        if ( y < (terrainLevel + vertOffset) ) {
+          if ( y < (terrainLevel + vertOffset - 2) ) {
             voxelData[vector3ToArrayIndex(
               x-offset.x, y-offset.y, z-offset.z, chunkScale)] = 2
           } else {
@@ -407,6 +409,7 @@ const calculateTerrain = async (offset, chunkScale) => {
               x-offset.x, y-offset.y, z-offset.z, chunkScale)] = 1
           }
         }
+
       }
     }
   }

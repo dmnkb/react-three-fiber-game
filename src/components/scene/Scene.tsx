@@ -6,7 +6,7 @@ import { StoreContext } from '../../state/Context'
 
 import { Sky } from '@react-three/drei'
 import Chunk from './terrain/chunk'
-
+document.addEventListener('onPointerDown', (event) => {event.preventDefault();console.log("test")}, false);
 
 let addQueueIsEmpty = true
 
@@ -22,7 +22,9 @@ const Scene = () => {
 
   useEffect(() => {
     ballMesh.current = new THREE.Mesh( geometry, material );
+    document.addEventListener("keydown", onKeyPress, false);
     scene.add(ballMesh.current)
+    
   }, [])
 
   const updateChunks = (playerPos: Vector3) => {
@@ -69,7 +71,9 @@ const Scene = () => {
           if (!chunks.current[`${x}|${z}`]) {
 
             const c = new Chunk(new Vector3(x - 16, 0, z - 16), (mesh) => {
-              chunks.current[`${x}|${z}`] = mesh
+              chunks.current[`${x}|${z}`] = {"mesh": mesh, "chunk": c}
+              console.log(`${x}|${z}`)
+              console.log(chunks.current[`${x}|${z}`])
               scene.add(mesh)
 
               chunksLoaded++
@@ -96,7 +100,8 @@ const Scene = () => {
                       Math.pow(playerPos.x - x, 2) + Math.pow(playerPos.z - z, 2)))
 
                     if (voxelDistance > loadingRadius) {
-                      scene.remove(chunks.current[key])
+                      scene.remove(chunks.current[key]["mesh"])
+                      chunks.current[key]["chunk"] = null // Let the garbage collector do the rest
                       chunks.current[key] = null
                     }
 
@@ -128,7 +133,7 @@ const Scene = () => {
   
   useFrame((state, delta) => {
 
-    angle = angle < 360 ? angle + .1 : 0
+    angle = angle < 360 ? angle + 0 : 0
     testPos = new Vector3(
       4 * Math.sin(angle * Math.PI / 180) * radius, 
       0,
@@ -156,6 +161,27 @@ const Scene = () => {
     }
 
   })
+
+  const onKeyPress = (event: any) => {
+    
+    let thisChunk = chunks.current['80|80']
+    console.log(thisChunk)
+
+    if (thisChunk && thisChunk['mesh']) {
+
+      thisChunk["chunk"].addBlock(new Vector3(8,15,8), 2, (mesh: THREE.Mesh) => {
+        scene.remove(thisChunk['mesh'])
+        thisChunk['mesh'] = mesh
+        scene.add(mesh)
+      })
+
+      thisChunk["chunk"].removeBlock(new Vector3(8,10,8), (mesh: THREE.Mesh) => {
+        scene.remove(thisChunk['mesh'])
+        thisChunk['mesh'] = mesh
+        scene.add(mesh)
+      })
+    }
+  }
 
   return (
     <group>

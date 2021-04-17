@@ -37,6 +37,19 @@ class Chunk {
   tileTextureHeight = 64;
   tileSize = 16;
 
+  voxelData = new Int8Array(Math.pow(this.CHUNK_SCALE, 3))
+  mesh: THREE.Mesh| undefined = undefined
+
+  /**
+  * Convert a vector 3 coordinate to a flat array index
+  * @param x {number} The x coordinate
+  * @param y {number} The y coordinate
+  * @param z {number} The z coordinate
+  * @param size {number} The size of each dimension, the size is the same for each one
+  */
+  vector3ToArrayIndex = (x: number, y: number, z: number, size = 32) =>
+    (size * size * x) + (size * y) + z;
+
   constructor(offset: Vector3, callback: (mesh: THREE.Mesh) => any) {
     this.offset = offset
     this.callback = callback
@@ -75,9 +88,24 @@ class Chunk {
     await remoteFunction(Comlink.proxy(this.onTerrainCalculated), offset, CHUNK_SCALE);
   }
   
-  onTerrainCalculated = (value: any) => {
-    this.createMesh(value).then((mesh) => {
+  onTerrainCalculated = (voxelData: any) => {
+    this.voxelData = voxelData
+    this.createMesh(voxelData).then((mesh) => {
       this.callback(mesh)
+    })
+  }
+
+  addBlock = async (position: Vector3, type: BlockType, callback: (mesh: THREE.Mesh) => any) => {
+    this.voxelData[vector3ToArrayIndex(position.x, position.y, position.z)] = type
+    await this.createMesh(this.voxelData).then((mesh) => {
+      callback(mesh)
+    })
+  }
+  
+  removeBlock = async (position: Vector3, callback: (mesh: THREE.Mesh) => any) => {
+    this.voxelData[vector3ToArrayIndex(position.x, position.y, position.z)] = 0
+    await this.createMesh(this.voxelData).then((mesh) => {
+      callback(mesh)
     })
   }
   
@@ -157,7 +185,7 @@ class Chunk {
 
     })
 
-    const geometry = new THREE.BufferGeometry();
+    const geometry = this.mesh ? this.mesh.geometry : new THREE.BufferGeometry();
     const texture = new THREE.TextureLoader().load('./textures/terrain.png');
     texture.encoding = THREE.sRGBEncoding
     texture.magFilter = THREE.NearestFilter;
@@ -181,8 +209,10 @@ class Chunk {
     geometry.setAttribute('uv',
       new THREE.BufferAttribute(new Float32Array(uvs), uvNumComponents));
     geometry.setIndex(indices);
+
+    this.mesh = new THREE.Mesh(geometry, material)
     
-    return Promise.resolve(new THREE.Mesh(geometry, material))
+    return Promise.resolve(this.mesh)
 
   }
 
