@@ -1,19 +1,20 @@
-import { useEffect, useState } from 'react'
-import './App.scss';
 import { Canvas } from '@react-three/fiber'
+import { Stats } from '@react-three/drei'
 
-
-import { OrbitControls, Stats } from '@react-three/drei'
 import Scene from './components/scene/Scene'
+import DemoUI from './components/ui/DemoUI'
 
+import './App.scss';
 
 function App() {
   return (
-    <Canvas camera={{ position: [0, 256, -128], fov: 50 }}>
-      <Scene />
-      <OrbitControls />
-      <Stats />
-    </Canvas>
+    <div className="container">
+      <Canvas>
+        <Scene />
+        <Stats />
+      </Canvas>
+      <DemoUI />
+    </div>
   )
 }
 

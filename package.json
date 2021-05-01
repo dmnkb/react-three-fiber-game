@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
+    "@material-ui/core": "^4.11.3",
     "@react-three/cannon": "^1.0.0",
     "@react-three/drei": "^4.0.1",
     "@react-three/fiber": "^6.0.5",

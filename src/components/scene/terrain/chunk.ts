@@ -33,12 +33,13 @@ class Chunk {
 
   USE_MULTI_THREADING = true
   CHUNK_SCALE = 32
+
   tileTextureWidth = 256;
   tileTextureHeight = 64;
   tileSize = 16;
 
   voxelData = new Int8Array(Math.pow(this.CHUNK_SCALE, 3))
-  mesh: THREE.Mesh| undefined = undefined
+  mesh: THREE.Mesh | undefined = undefined
 
   /**
   * Convert a vector 3 coordinate to a flat array index
@@ -97,16 +98,12 @@ class Chunk {
 
   addBlock = async (position: Vector3, type: BlockType, callback: (mesh: THREE.Mesh) => any) => {
     this.voxelData[vector3ToArrayIndex(position.x, position.y, position.z)] = type
-    await this.createMesh(this.voxelData).then((mesh) => {
-      callback(mesh)
-    })
+    this.createMesh(this.voxelData)
   }
   
-  removeBlock = async (position: Vector3, callback: (mesh: THREE.Mesh) => any) => {
+  removeBlock = async (position: Vector3) => {
     this.voxelData[vector3ToArrayIndex(position.x, position.y, position.z)] = 0
-    await this.createMesh(this.voxelData).then((mesh) => {
-      callback(mesh)
-    })
+    this.createMesh(this.voxelData)
   }
   
   createMesh = async (voxelData: any): Promise<THREE.Mesh> => {
@@ -145,9 +142,9 @@ class Chunk {
 
               // Positions
               positions.push(
-                (pos[0] + thisCoords.x + this.offset.x), 
-                (pos[1] + thisCoords.y + this.offset.y), 
-                (pos[2] + thisCoords.z) + this.offset.z);
+                (pos[0] + thisCoords.x), 
+                (pos[1] + thisCoords.y), 
+                (pos[2] + thisCoords.z));
 
               // Normals
               normals.push(...[thisSide.vec[0], thisSide.vec[1], thisSide.vec[2]])           
@@ -211,6 +208,9 @@ class Chunk {
     geometry.setIndex(indices);
 
     this.mesh = new THREE.Mesh(geometry, material)
+    this.mesh.position.x = this.offset.x
+    this.mesh.position.y = this.offset.y
+    this.mesh.position.z = this.offset.z
     
     return Promise.resolve(this.mesh)
 

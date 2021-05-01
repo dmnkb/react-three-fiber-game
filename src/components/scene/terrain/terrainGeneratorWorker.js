@@ -397,11 +397,9 @@ const calculateTerrain = async (offset, chunkScale) => {
     for (let y = offset.y; y < offset.y + chunkScale; y++) {
       for (let z = offset.z; z < offset.z + chunkScale; z++) {        
         terrainLevel = (pn.noise(x/chunkScale, 0, z/chunkScale) * chunkScale)
-
-        let vertOffset = -8
         
-        if ( y < (terrainLevel + vertOffset) ) {
-          if ( y < (terrainLevel + vertOffset - 2) ) {
+        if ( y < (terrainLevel) ) {
+          if ( y < (terrainLevel - 2) ) {
             voxelData[vector3ToArrayIndex(
               x-offset.x, y-offset.y, z-offset.z, chunkScale)] = 2
           } else {

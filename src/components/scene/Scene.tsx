@@ -2,44 +2,49 @@ import { useEffect, useRef } from 'react'
 import * as THREE from 'three';
 import { Vector3 } from 'three';
 import { useThree, useFrame } from '@react-three/fiber'
-import { StoreContext } from '../../state/Context'
-
 import { Sky } from '@react-three/drei'
 import Chunk from './terrain/chunk'
-document.addEventListener('onPointerDown', (event) => {event.preventDefault();console.log("test")}, false);
+import Player from './player/Player'
+import intersectRay from './intersectRay'
 
 let addQueueIsEmpty = true
+// let raycaster: THREE.Raycaster | undefined = undefined;
+let cube: THREE.Mesh | undefined = undefined
+
+// let closestChunk: any = null
+// let targetVoxel: THREE.Vector3 | undefined = undefined
+
+let playerChunkX: number = 0
+let playerChunkZ: number = 0
 
 const Scene = () => {
 
-  const { scene } = useThree()
-
-  const geometry = new THREE.SphereGeometry( 8 );
-  const material = new THREE.MeshBasicMaterial({ color: 'red', opacity: .5 });
-  let ballMesh = useRef<THREE.Mesh>(null!)
-
+  const { scene, mouse, raycaster, camera } = useThree()
   const chunks: any = useRef([])
-
+  
   useEffect(() => {
-    ballMesh.current = new THREE.Mesh( geometry, material );
-    document.addEventListener("keydown", onKeyPress, false);
-    scene.add(ballMesh.current)
-    
+    //
+    const geometry = new THREE.BoxGeometry(1, 1, 1);
+    const material = new THREE.MeshBasicMaterial( {color: 0xff00ff} );
+    cube = new THREE.Mesh( geometry, material );
+    scene.add(cube);
+    //
+    document.addEventListener("keydown", data => onKeyPress(data), false)
   }, [])
 
   const updateChunks = (playerPos: Vector3) => {
     
-    const loadingRadius = 4 * 32
+    const loadingRadius = 2 * 32
 
     // Adding chunks
 
-    let roundedCenterX = (Math.ceil(playerPos.x/32) * 32) + 16;
-    let roundedCenterZ = (Math.ceil(playerPos.z/32) * 32) + 16;
+    let playerChunkX = (Math.ceil(playerPos.x/32) * 32) + 16;
+    let playerChunkZ = (Math.ceil(playerPos.z/32) * 32) + 16;
 
-    let startX = (roundedCenterX - ((Math.floor(loadingRadius * 2 / 32) * 32 / 2)))
-    let startZ = (roundedCenterZ - ((Math.floor(loadingRadius * 2 / 32) * 32 / 2)))
-    let limitX = (roundedCenterX + (Math.floor(loadingRadius * 2 / 32) * 32 / 2))
-    let limitZ = (roundedCenterZ + (Math.floor(loadingRadius * 2 / 32) * 32 / 2))
+    let startX = (playerChunkX - ((Math.floor(loadingRadius * 2 / 32) * 32 / 2)))
+    let startZ = (playerChunkZ - ((Math.floor(loadingRadius * 2 / 32) * 32 / 2)))
+    let limitX = (playerChunkX + (Math.floor(loadingRadius * 2 / 32) * 32 / 2))
+    let limitZ = (playerChunkZ + (Math.floor(loadingRadius * 2 / 32) * 32 / 2))
 
     let chunksLoaded = 0
     let chunksExpectedToBeLoaded = 0
@@ -71,9 +76,10 @@ const Scene = () => {
           if (!chunks.current[`${x}|${z}`]) {
 
             const c = new Chunk(new Vector3(x - 16, 0, z - 16), (mesh) => {
+              
+              mesh.userData['chunk-id'] = `${x}|${z}`
               chunks.current[`${x}|${z}`] = {"mesh": mesh, "chunk": c}
-              console.log(`${x}|${z}`)
-              console.log(chunks.current[`${x}|${z}`])
+              
               scene.add(mesh)
 
               chunksLoaded++
@@ -122,65 +128,139 @@ const Scene = () => {
     
   }
 
-  // Simulate player movement
-
-  let testPos = new Vector3(0,0,0)
-  let radius = 32
-  let angle = 0;
-
-  let lastX = 0
-  let lastZ = 0
-  
-  useFrame((state, delta) => {
-
-    angle = angle < 360 ? angle + 0 : 0
-    testPos = new Vector3(
-      4 * Math.sin(angle * Math.PI / 180) * radius, 
-      0,
-      4 * Math.cos(angle * Math.PI / 180) * radius,
-    )
-
-    ballMesh.current.position.x = testPos.x
-      ballMesh.current.position.y = 32
-      ballMesh.current.position.z = testPos.z
-
-    if ((Math.ceil(testPos.x/32) * 32) !== lastX ||
-        (Math.ceil(testPos.z/32) * 32) !== lastZ) {
-
-      lastX = (Math.ceil(testPos.x/32) * 32)
-      lastZ = (Math.ceil(testPos.z/32) * 32)
-
-      // prevent race conditions
-      if ( addQueueIsEmpty ) {
-        addQueueIsEmpty = false
-        updateChunks(new Vector3(lastX, 0, lastZ))
-      }
-      
-      // console.log("scene items", scene.children.length)
-      
+  let playerMovedBeyondThreshold = (x: number, z: number) => {
+    if ( addQueueIsEmpty ) {
+      addQueueIsEmpty = false
+      updateChunks(new Vector3(x, 0, z))
     }
+  }
 
-  })
-
-  const onKeyPress = (event: any) => {
+  /**
+   * 
+   * @param state 
+   * @returns 
+   */
+  const getChunkByRay = (): THREE.Mesh | null => {
     
-    let thisChunk = chunks.current['80|80']
-    console.log(thisChunk)
+    let chunkMeshs: THREE.Mesh[] = []
+    Object.values(chunks.current).forEach((chunk: any) => {
+      if (chunk) {
+        chunkMeshs.push(chunk['mesh'])
+        chunk['mesh'].material.color = new THREE.Color(0xffffff)
+      }
+    })
+    
+    raycaster && raycaster.setFromCamera( 
+      new THREE.Vector2(mouse.x, mouse.y), camera)
+      
+    let intersectingChunks = raycaster.intersectObjects(chunkMeshs)
+    
+    if (!intersectingChunks.length) return null
 
-    if (thisChunk && thisChunk['mesh']) {
+    let closest: any = null
+    intersectingChunks.forEach((chunk: any) => {
+      if (!closest) {
+        closest = chunk
+      } else {
+        if (chunk.distance < closest.distance) {
+          closest = chunk
+        }
+      }
+    })
+    return closest.object
+  }
 
-      thisChunk["chunk"].addBlock(new Vector3(8,15,8), 2, (mesh: THREE.Mesh) => {
-        scene.remove(thisChunk['mesh'])
-        thisChunk['mesh'] = mesh
-        scene.add(mesh)
-      })
+  /**
+   * 
+   * @param closestChunk 
+   * @param state 
+   * @returns 
+   */
+  const getVoxelByRay = (closestChunk: THREE.Mesh | null): 
+    THREE.Vector3 | null => {
 
-      thisChunk["chunk"].removeBlock(new Vector3(8,10,8), (mesh: THREE.Mesh) => {
-        scene.remove(thisChunk['mesh'])
-        thisChunk['mesh'] = mesh
-        scene.add(mesh)
-      })
+    if (!closestChunk) return null
+
+    const rayLength = 32
+
+    let chunk = chunks.current[closestChunk.userData['chunk-id']]['chunk']
+      
+    let voxelData = chunk.voxelData
+    let rayStart = camera.position
+    let lookAt = new Vector3()
+    camera.getWorldDirection(lookAt)
+
+    let rayEnd = new Vector3(
+      rayStart.x + (lookAt.x * rayLength),
+      rayStart.y + (lookAt.y * rayLength),
+      rayStart.z + (lookAt.z * rayLength))
+
+    let voxelIntersection = intersectRay(
+      rayStart, rayEnd, voxelData,
+      new THREE.Vector3(playerChunkX, 0, playerChunkZ))
+
+    if (voxelIntersection) {
+      // render dummy cube
+      if (cube) {
+        cube.position.x = Math.round(voxelIntersection.position[0]) + .5
+        cube.position.y = Math.round(voxelIntersection.position[1]) + .5
+        cube.position.z = Math.round(voxelIntersection.position[2]) + .5
+      }
+      return  new Vector3(
+        Math.round(voxelIntersection.position[0]),
+        Math.round(voxelIntersection.position[1]),
+        Math.round(voxelIntersection.position[2]))
+    } else {
+      if (cube) {
+        cube.position.x = 0
+        cube.position.y = 0
+        cube.position.z = 0
+      }        
+      return null
     }
+    
+  }
+  
+  useFrame((state, delta) => {    
+    let chunk: any = getChunkByRay()
+    chunk && (getVoxelByRay(chunk))
+  })
+  
+  const onKeyPress = (event: any) => {
+
+    let chunkMesh: any = getChunkByRay()
+
+    if (chunkMesh) {
+      let chunkRef = chunks.current[chunkMesh.userData['chunk-id']]['chunk']
+      let pos = getVoxelByRay(chunkMesh)
+
+      switch (event.keyCode) {
+        case 32:
+          if ( pos ) {
+            chunkRef.addBlock(
+              new THREE.Vector3(
+                pos.x - playerChunkX,
+                pos.y,
+                pos.z - playerChunkZ
+              ), 2)
+          }        
+          break;
+        case 66:
+          if ( pos ) {
+            chunkRef.removeBlock(
+              new THREE.Vector3(
+                pos.x - playerChunkX,
+                pos.y - 1,
+                pos.z - playerChunkZ
+              ))
+          }
+          
+          break
+        default:
+          break
+      }
+    }
+
   }
 
   return (
@@ -191,6 +271,10 @@ const Scene = () => {
         inclination={0} // Sun elevation angle from 0 to 1 (default=0)
         azimuth={0.25} // Sun rotation around the Y axis from 0 to 1 (default=0.25)
       />
+      <Player 
+        initialPos={new Vector3(0, 56, 0)}
+        playerMoveEvent={playerMovedBeyondThreshold}
+        />
     </group>
   )
 }
