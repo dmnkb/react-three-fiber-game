@@ -1,21 +1,19 @@
-import { Canvas } from '@react-three/fiber'
-import { Stats } from '@react-three/drei'
+import { Canvas } from "@react-three/fiber"
+import { Stats } from "@react-three/drei"
 
-import Scene from './components/scene/Scene'
-import DemoUI from './components/ui/DemoUI'
+import Scene from "./components/scene/Scene"
 
-import './App.scss';
+import "./App.scss"
 
 function App() {
-  return (
-    <div className="container">
-      <Canvas>
-        <Scene />
-        <Stats />
-      </Canvas>
-      <DemoUI />
-    </div>
-  )
+	return (
+		<div className='container'>
+			<Canvas>
+				<Scene />
+				<Stats />
+			</Canvas>
+		</div>
+	)
 }
 
-export default App;
+export default App
